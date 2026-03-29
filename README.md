@@ -167,7 +167,7 @@ huggingface-cli download xai-org/grok-1 --repo-type model --include ckpt-0/* --l
 
 ```shell
 pip install flask openai
-python -m pytest tests/ -v
+python -m unittest tests.test_hancock -v
 ```
 
 # License
