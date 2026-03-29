@@ -1,22 +1,136 @@
-# Grok-1
+# 🛡️ Grok-1 + Hancock — AI Cybersecurity Agent
 
-This repository contains JAX example code for loading and running the Grok-1 open-weights model.
+This repository combines the **Grok-1 314B Mixture-of-Experts** language model with
+**Hancock**, CyberViser's AI-powered cybersecurity agent for pentesting, SOC analysis,
+incident response, and more.
 
-Make sure to download the checkpoint and place the `ckpt-0` directory in `checkpoints` - see [Downloading the weights](#downloading-the-weights)
+---
 
-Then, run
+## 🚀 Quick Start
+
+### 1. Install dependencies
 
 ```shell
 pip install -r requirements.txt
+```
+
+### 2. Run the original Grok-1 demo
+
+Make sure to download the checkpoint and place the `ckpt-0` directory in `checkpoints` — see [Downloading the weights](#downloading-the-weights).
+
+```shell
 python run.py
 ```
 
-to test the code.
+### 3. Run the Hancock cybersecurity agent
 
-The script loads the checkpoint and samples from the model on a test input.
+**Interactive CLI (with Ollama backend):**
 
-Due to the large size of the model (314B parameters), a machine with enough GPU memory is required to test the model with the example code.
-The implementation of the MoE layer in this repository is not efficient. The implementation was chosen to avoid the need for custom kernels to validate the correctness of the model.
+```shell
+# Install and start Ollama first: https://ollama.com
+export HANCOCK_LLM_BACKEND=ollama
+python hancock_agent.py
+```
+
+**REST API server:**
+
+```shell
+python hancock_agent.py --server --port 5000
+```
+
+**With Grok-1 native backend (requires multi-GPU):**
+
+```shell
+python hancock_agent.py --backend grok
+```
+
+---
+
+## 🤖 Hancock — Cybersecurity Modes
+
+| Mode | Endpoint | Description |
+|------|----------|-------------|
+| 🔴 **Pentest** | `/v1/chat` (mode: pentest) | Recon, exploitation, CVE analysis, PTES reporting |
+| 🔵 **SOC** | `/v1/triage`, `/v1/hunt`, `/v1/respond` | Alert triage, SIEM queries, PICERL incident response |
+| ⚡ **Auto** | `/v1/chat` (mode: auto) | Context-aware pentest + SOC combined |
+| 💻 **Code** | `/v1/code` | Security code: YARA, KQL, SPL, Sigma, Python |
+| 👔 **CISO** | `/v1/ciso` | Compliance, risk reporting, board summaries |
+| 🔍 **Sigma** | `/v1/sigma` | Sigma detection rule authoring |
+| 🦠 **YARA** | `/v1/yara` | YARA malware detection rule authoring |
+| 🔎 **IOC** | `/v1/ioc` | Threat intelligence enrichment |
+
+### API Examples
+
+**Alert Triage:**
+```bash
+curl -X POST http://localhost:5000/v1/triage \
+  -H "Content-Type: application/json" \
+  -d '{"alert": "Mimikatz detected on DC01 at 03:14 UTC"}'
+```
+
+**Threat Hunting (Splunk):**
+```bash
+curl -X POST http://localhost:5000/v1/hunt \
+  -H "Content-Type: application/json" \
+  -d '{"target": "lateral movement via PsExec", "siem": "splunk"}'
+```
+
+**Sigma Rule Generation:**
+```bash
+curl -X POST http://localhost:5000/v1/sigma \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Detect LSASS memory dump", "logsource": "windows sysmon", "technique": "T1003.001"}'
+```
+
+**YARA Rule Generation:**
+```bash
+curl -X POST http://localhost:5000/v1/yara \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Cobalt Strike beacon default HTTP profile", "file_type": "PE"}'
+```
+
+**IOC Enrichment:**
+```bash
+curl -X POST http://localhost:5000/v1/ioc \
+  -H "Content-Type: application/json" \
+  -d '{"indicator": "185.220.101.35", "type": "ip"}'
+```
+
+### CLI Commands
+
+```
+/mode pentest | soc | auto | code | ciso | sigma | yara | ioc
+/clear          — clear conversation history
+/history        — show history
+/model <id>     — switch model
+/exit           — quit
+```
+
+### Backends
+
+| Backend | Env Var | Description |
+|---------|---------|-------------|
+| **grok** | `HANCOCK_LLM_BACKEND=grok` | Grok-1 native 314B MoE (requires GPU cluster) |
+| **ollama** | `HANCOCK_LLM_BACKEND=ollama` | Local Ollama server (default) |
+| **nvidia** | `HANCOCK_LLM_BACKEND=nvidia` + `NVIDIA_API_KEY` | NVIDIA NIM cloud API |
+| **openai** | `HANCOCK_LLM_BACKEND=openai` + `OPENAI_API_KEY` | OpenAI API |
+
+---
+
+## 📋 File Structure
+
+| File | Purpose |
+|------|---------|
+| `model.py` | Grok-1 model architecture (314B MoE, JAX) |
+| `checkpoint.py` | Checkpoint loading and restoration |
+| `runners.py` | Grok-1 inference runner and sampling |
+| `run.py` | Original Grok-1 demo script |
+| `hancock_agent.py` | Hancock cybersecurity agent (CLI + REST API) |
+| `hancock_runner.py` | Bridge between Hancock and Grok-1 inference |
+| `hancock_constants.py` | Shared constants and utilities |
+| `tests/test_hancock.py` | Unit tests for Hancock modules |
+
+---
 
 # Model Specifications
 
@@ -47,6 +161,13 @@ or directly using [HuggingFace 🤗 Hub](https://huggingface.co/xai-org/grok-1):
 git clone https://github.com/xai-org/grok-1.git && cd grok-1
 pip install huggingface_hub[hf_transfer]
 huggingface-cli download xai-org/grok-1 --repo-type model --include ckpt-0/* --local-dir checkpoints --local-dir-use-symlinks False
+```
+
+# Running Tests
+
+```shell
+pip install flask openai
+python -m pytest tests/ -v
 ```
 
 # License
