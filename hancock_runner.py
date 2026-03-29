@@ -159,7 +159,7 @@ class HancockGrokRunner:
                 "Runner not initialized. Call .initialize() first."
             )
 
-        from runners import Request, sample_from_model
+        from runners import sample_from_model
 
         _max_len = max_len if max_len is not None else self.max_len
         _temperature = temperature if temperature is not None else self.temperature
