@@ -432,8 +432,8 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
     """Build and return the Flask app."""
     try:
         from flask import Flask, Response, jsonify, request, stream_with_context
-    except ImportError:
-        sys.exit("Flask is required for server mode. Run: pip install flask")
+    except ImportError as exc:
+        raise ImportError("Flask is required for server mode. Run: pip install flask") from exc
 
     app = Flask("hancock")
 
