@@ -29,6 +29,22 @@ from hancock_constants import AGENT_NAME
 
 logger = logging.getLogger(__name__)
 
+# Lazy import for adapter support
+_AdapterManager = None
+
+
+def _import_adapter_manager():
+    """Lazy import of AdapterManager to avoid circular dependencies."""
+    global _AdapterManager
+    if _AdapterManager is None:
+        try:
+            from hancock_adapter import AdapterManager
+            _AdapterManager = AdapterManager
+        except ImportError:
+            logger.warning("hancock_adapter not available, adapter support disabled")
+            _AdapterManager = None
+    return _AdapterManager
+
 
 @dataclass
 class HancockGrokRunner:
@@ -59,10 +75,12 @@ class HancockGrokRunner:
     pad_sizes: tuple[int, ...] = (1024,)
     max_len: int = 256
     temperature: float = 0.7
+    adapter_path: Optional[str] = None  # Path to LoRA adapter to load
 
     # Internal state — populated by :meth:`initialize`.
     _inference_runner: object = field(default=None, init=False, repr=False)
     _generator: object = field(default=None, init=False, repr=False)
+    _adapter_manager: object = field(default=None, init=False, repr=False)
 
     # ------------------------------------------------------------------
     # Lazy imports – keep the module importable even without JAX/GPU.
@@ -77,8 +95,14 @@ class HancockGrokRunner:
 
     # ------------------------------------------------------------------
 
-    def initialize(self) -> None:
-        """Load the Grok-1 checkpoint and prepare the inference generator."""
+    def initialize(self, adapter_manager: Optional[object] = None) -> None:
+        """Load the Grok-1 checkpoint and prepare the inference generator.
+
+        Parameters
+        ----------
+        adapter_manager : AdapterManager, optional
+            Optional AdapterManager instance to use for loading fine-tuned adapters.
+        """
         (
             LanguageModelConfig,
             TransformerConfig,
@@ -87,6 +111,18 @@ class HancockGrokRunner:
             ModelRunner,
             _,
         ) = self._import_grok()
+
+        # Initialize adapter manager if adapter path is provided
+        if self.adapter_path and adapter_manager is None:
+            AdapterManagerClass = _import_adapter_manager()
+            if AdapterManagerClass:
+                logger.info("[%s] Initializing adapter manager …", AGENT_NAME)
+                adapter_manager = AdapterManagerClass(self.checkpoint_path)
+                adapter_name = adapter_manager.load_adapter(self.adapter_path)
+                adapter_manager.activate_adapter(adapter_name)
+                logger.info("[%s] Loaded and activated adapter: %s", AGENT_NAME, adapter_name)
+
+        self._adapter_manager = adapter_manager
 
         logger.info("[%s] Building Grok-1 model config …", AGENT_NAME)
         grok_1_model = LanguageModelConfig(
@@ -129,7 +165,17 @@ class HancockGrokRunner:
         )
         self._inference_runner.initialize()
         self._generator = self._inference_runner.run()
-        logger.info("[%s] Grok-1 model ready.", AGENT_NAME)
+
+        if self._adapter_manager and self._adapter_manager.active_adapter:
+            config = self._adapter_manager.get_active_config()
+            logger.info(
+                "[%s] Grok-1 model ready with adapter: %s (specialization: %s)",
+                AGENT_NAME,
+                config.name,
+                config.specialization,
+            )
+        else:
+            logger.info("[%s] Grok-1 model ready (base model).", AGENT_NAME)
 
     def generate(
         self,
@@ -176,6 +222,29 @@ class HancockGrokRunner:
         """Return *True* when the model is loaded and ready for inference."""
         return self._generator is not None
 
+    @property
+    def has_adapter(self) -> bool:
+        """Return *True* if a fine-tuned adapter is loaded."""
+        return (
+            self._adapter_manager is not None
+            and self._adapter_manager.active_adapter is not None
+        )
+
+    def get_adapter_info(self) -> Optional[dict]:
+        """Get information about the currently loaded adapter."""
+        if not self.has_adapter:
+            return None
+
+        config = self._adapter_manager.get_active_config()
+        return {
+            "name": config.name,
+            "specialization": config.specialization,
+            "lora_r": config.r,
+            "lora_alpha": config.alpha,
+            "training_dataset": config.training_dataset,
+            "metadata": config.metadata,
+        }
+
 
 def main():
     parser = argparse.ArgumentParser(description="Hancock Grok-1 Runner")
@@ -184,6 +253,8 @@ def main():
     parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--checkpoint", type=str, default="./checkpoints/")
     parser.add_argument("--tokenizer", type=str, default="./tokenizer.model")
+    parser.add_argument("--adapter", type=str, default=None,
+                        help="Path to fine-tuned LoRA adapter")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -191,8 +262,14 @@ def main():
     runner = HancockGrokRunner(
         checkpoint_path=args.checkpoint,
         tokenizer_path=args.tokenizer,
+        adapter_path=args.adapter,
     )
     runner.initialize()
+
+    if runner.has_adapter:
+        info = runner.get_adapter_info()
+        logger.info(f"Using adapter: {info['name']} (specialization: {info['specialization']})")
+
     output = runner.generate(args.prompt, max_len=args.max_len, temperature=args.temperature)
     print(f"\n[{AGENT_NAME}] {output}")
 
