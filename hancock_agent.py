@@ -231,6 +231,8 @@ MODELS = {
     "nim-llama": "meta/llama-3.1-8b-instruct",
 }
 
+_banner_title = f"{COMPANY} — {AGENT_NAME} + Grok-1 314B MoE"
+_banner_modes = "Pentest · SOC · CISO · Code · Sigma · YARA · IOC"
 BANNER = f"""
 ╔══════════════════════════════════════════════════════════╗
 ║  ██╗  ██╗ █████╗ ███╗   ██╗ ██████╗ ██████╗  ██████╗██╗ ║
@@ -239,8 +241,8 @@ BANNER = f"""
 ║  ██╔══██║██╔══██║██║╚██╗██║██║     ██║   ██║██║     ██╚╗║
 ║  ██║  ██║██║  ██║██║ ╚████║╚██████╗╚██████╔╝╚██████╗╚═╝║║
 ║  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝  ╚═════╝   ║
-║     {COMPANY} — {AGENT_NAME} + Grok-1 314B MoE             ║
-║   Pentest · SOC · CISO · Code · Sigma · YARA · IOC      ║
+║  {_banner_title:<55s}║
+║  {_banner_modes:<55s}║
 ╚══════════════════════════════════════════════════════════╝
   Modes : /mode {' | '.join(ALL_MODES)}
   Models: /model llama3.1 | mistral | qwen-coder | gemma3

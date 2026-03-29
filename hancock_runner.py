@@ -82,10 +82,10 @@ class HancockGrokRunner:
         (
             LanguageModelConfig,
             TransformerConfig,
-            _QW8Bit,
+            _,
             InferenceRunner,
             ModelRunner,
-            _sample_from_model,
+            _,
         ) = self._import_grok()
 
         logger.info("[%s] Building Grok-1 model config …", AGENT_NAME)
