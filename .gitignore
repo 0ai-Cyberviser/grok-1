@@ -1,2 +1,5 @@
 checkpoints/*
 !checkpoints/README.md
+__pycache__/
+*.pyc
+.pytest_cache/
