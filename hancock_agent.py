@@ -473,8 +473,10 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
         timestamps.append(now)
         _rate_counts[ip] = timestamps
         if len(_rate_counts) > 10_000:
-            for k in [k for k, v in _rate_counts.items() if not v]:
-                del _rate_counts[k]
+            cutoff = now - _RATE_WINDOW
+            for k, v in list(_rate_counts.items()):
+                if not v or v[-1] < cutoff:
+                    del _rate_counts[k]
         return True, "", _RATE_LIMIT - len(timestamps)
 
     def _api_generate(messages: list[dict], max_tokens: int = 1024,
