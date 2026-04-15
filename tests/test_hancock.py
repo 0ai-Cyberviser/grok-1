@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import types
 import unittest
@@ -139,6 +140,15 @@ class TestFlaskApp(unittest.TestCase):
 
     def test_ask_missing_question(self):
         resp = self.client.post("/v1/ask", json={})
+        self.assertEqual(resp.status_code, 400)
+        data = resp.get_json()
+        self.assertIn("error", data)
+
+    def test_ask_invalid_mode(self):
+        resp = self.client.post("/v1/ask", json={
+            "question": "What is XSS?",
+            "mode": "invalid_mode",
+        })
         self.assertEqual(resp.status_code, 400)
         data = resp.get_json()
         self.assertIn("error", data)
@@ -284,6 +294,32 @@ class TestFlaskApp(unittest.TestCase):
         resp = self.client.get("/health")
         self.assertIn("X-RateLimit-Limit", resp.headers)
         self.assertIn("X-RateLimit-Remaining", resp.headers)
+
+    def test_failed_auth_requests_are_rate_limited(self):
+        from hancock_agent import build_app
+
+        with patch.dict(
+            os.environ,
+            {"HANCOCK_API_KEY": "secret-token", "HANCOCK_RATE_LIMIT": "2"},
+            clear=False,
+        ):
+            app = build_app(self.mock_client, "test-model")
+            client = app.test_client()
+
+            for _ in range(2):
+                resp = client.post(
+                    "/v1/ask",
+                    json={"question": "What is XSS?"},
+                    headers={"Authorization": "Bearer wrong-token"},
+                )
+                self.assertEqual(resp.status_code, 401)
+
+            resp = client.post(
+                "/v1/ask",
+                json={"question": "What is XSS?"},
+                headers={"Authorization": "Bearer wrong-token"},
+            )
+            self.assertEqual(resp.status_code, 429)
 
 
 class TestFlaskAppWithGrokBackend(unittest.TestCase):

@@ -460,11 +460,6 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
 
     def _check_auth_and_rate():
         import time as _time
-        if _HANCOCK_API_KEY:
-            auth = request.headers.get("Authorization", "")
-            token = auth.removeprefix("Bearer ").strip()
-            if not hmac.compare_digest(token, _HANCOCK_API_KEY):
-                return False, "Unauthorized", 0
         now = _time.time()
         ip = request.remote_addr or "unknown"
         timestamps = [t for t in _rate_counts.get(ip, []) if now - t < _RATE_WINDOW]
@@ -477,7 +472,13 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
             for k, v in list(_rate_counts.items()):
                 if not v or v[-1] < cutoff:
                     del _rate_counts[k]
-        return True, "", _RATE_LIMIT - len(timestamps)
+        remaining = max(0, _RATE_LIMIT - len(timestamps))
+        if _HANCOCK_API_KEY:
+            auth = request.headers.get("Authorization", "")
+            token = auth.removeprefix("Bearer ").strip()
+            if not hmac.compare_digest(token, _HANCOCK_API_KEY):
+                return False, "Unauthorized", remaining
+        return True, "", remaining
 
     def _api_generate(messages: list[dict], max_tokens: int = 1024,
                       temperature: float = 0.7) -> str:
@@ -623,8 +624,11 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
         if not question:
             _inc("errors_total")
             return jsonify({"error": "question required"}), 400
+        if mode not in SYSTEMS:
+            _inc("errors_total")
+            return jsonify({"error": f"invalid mode '{mode}'"}), 400
         messages = [
-            {"role": "system", "content": SYSTEMS.get(mode, AUTO_SYSTEM)},
+            {"role": "system", "content": SYSTEMS[mode]},
             {"role": "user", "content": question},
         ]
         answer = _api_generate(messages)
