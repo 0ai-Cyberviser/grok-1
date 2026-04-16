@@ -35,6 +35,7 @@ python hancock_agent.py
 **REST API server:**
 
 ```shell
+export HANCOCK_API_KEY="replace-with-a-long-random-token"
 python hancock_agent.py --server --port 5000
 ```
 
@@ -64,6 +65,7 @@ python hancock_agent.py --backend grok
 **Alert Triage:**
 ```bash
 curl -X POST http://localhost:5000/v1/triage \
+  -H "Authorization: Bearer $HANCOCK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"alert": "Mimikatz detected on DC01 at 03:14 UTC"}'
 ```
@@ -71,6 +73,7 @@ curl -X POST http://localhost:5000/v1/triage \
 **Threat Hunting (Splunk):**
 ```bash
 curl -X POST http://localhost:5000/v1/hunt \
+  -H "Authorization: Bearer $HANCOCK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"target": "lateral movement via PsExec", "siem": "splunk"}'
 ```
@@ -78,6 +81,7 @@ curl -X POST http://localhost:5000/v1/hunt \
 **Sigma Rule Generation:**
 ```bash
 curl -X POST http://localhost:5000/v1/sigma \
+  -H "Authorization: Bearer $HANCOCK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"description": "Detect LSASS memory dump", "logsource": "windows sysmon", "technique": "T1003.001"}'
 ```
@@ -85,6 +89,7 @@ curl -X POST http://localhost:5000/v1/sigma \
 **YARA Rule Generation:**
 ```bash
 curl -X POST http://localhost:5000/v1/yara \
+  -H "Authorization: Bearer $HANCOCK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"description": "Cobalt Strike beacon default HTTP profile", "file_type": "PE"}'
 ```
@@ -92,6 +97,7 @@ curl -X POST http://localhost:5000/v1/yara \
 **IOC Enrichment:**
 ```bash
 curl -X POST http://localhost:5000/v1/ioc \
+  -H "Authorization: Bearer $HANCOCK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"indicator": "185.220.101.35", "type": "ip"}'
 ```

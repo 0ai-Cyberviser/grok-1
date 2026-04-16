@@ -321,6 +321,16 @@ class TestFlaskApp(unittest.TestCase):
             )
             self.assertEqual(resp.status_code, 429)
 
+    def test_run_server_requires_api_key(self):
+        from hancock_agent import run_server
+
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "HANCOCK_API_KEY must be set before starting Hancock server mode.",
+            ):
+                run_server(self.mock_client, "test-model", 5000)
+
 
 class TestFlaskAppWithGrokBackend(unittest.TestCase):
     """Tests for Flask API endpoints using the Grok-1 backend."""

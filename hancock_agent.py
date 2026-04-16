@@ -6,7 +6,8 @@ Grok-1 314B Mixture-of-Experts inference.
 Two modes of operation:
 
   python hancock_agent.py                → interactive CLI chat
-  python hancock_agent.py --server       → REST API server (Flask, default port 5000)
+  HANCOCK_API_KEY=... python hancock_agent.py --server
+                                       → REST API server (Flask, default port 5000)
 
 Backends:
 
@@ -944,6 +945,10 @@ def build_app(client, model: str, *, grok_backend: Optional[GrokBackend] = None)
 
 def run_server(client, model: str, port: int, *,
                grok_backend: Optional[GrokBackend] = None):
+    if not os.getenv("HANCOCK_API_KEY", "").strip():
+        raise RuntimeError(
+            "HANCOCK_API_KEY must be set before starting Hancock server mode."
+        )
     app = build_app(client, model, grok_backend=grok_backend)
     print(f"\n[{COMPANY}] {AGENT_NAME} API server starting on port {port}")
     print(f"  POST /v1/chat     — conversational (mode: {' | '.join(ALL_MODES)})")
